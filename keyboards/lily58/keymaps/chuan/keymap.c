@@ -1,142 +1,124 @@
 #include QMK_KEYBOARD_H
 
-#ifdef RGBLIGHT_ENABLE
-//Following line allows macro to read current RGB settings
-extern rgblight_config_t rgblight_config;
+#ifdef PROTOCOL_LUFA
+  #include "lufa.h"
+  #include "split_util.h"
+#endif
+#ifdef SSD1306OLED
+  #include "ssd1306.h"
 #endif
 
 extern uint8_t is_master;
 
-#define _QWERTY 0
-#define _LOWER 1
-#define _RAISE 2
-#define _ADJUST 3
+bool is_ctrl_tab_active = false;
+bool is_alt_tab_active = false;
+bool is_alt_left_active = false;
+bool is_alt_right_active = false;
+bool is_sft_down_active = false;
+bool is_sft_left_active = false;
+bool is_sft_right_active = false;
+bool is_sft_up_active = false;
+bool is_sft_home_active = false;
+bool is_sft_end_active = false;
+
+uint16_t ctrl_tab_timer = 0;
+uint16_t alt_tab_timer = 0;
+uint16_t alt_left_timer = 0;
+uint16_t alt_right_timer = 0;
+uint16_t sft_down_timer = 0;
+uint16_t sft_left_timer = 0;
+uint16_t sft_right_timer = 0;
+uint16_t sft_up_timer = 0;
+uint16_t sft_home_timer = 0;
+uint16_t sft_end_timer = 0;
+
+#define _QWERTY  0
+#define _LOWER   1
+#define _RAISE   2
+#define _NAVI    3
+#define _YELLOW  4
 
 enum custom_keycodes {
-  QWERTY = SAFE_RANGE,
-  LOWER,
-  RAISE,
-  ADJUST,
+  CTRL_TAB = SAFE_RANGE,
+  ALT_TAB,
+  DT_ESC_MUTE,
+  DT_DEL_POWER,
+  DT_HOM_PGUP,
+  DT_END_PGDW,
+  ALT_LEFT,
+  ALT_RIGHT,
+  SFT_DOWN,
+  SFT_LEFT,
+  SFT_RIGHT,
+  SFT_UP,
+  SFT_HOME,
+  SFT_END,
+};
+
+qk_tap_dance_action_t tap_dance_actions[] = {
+    // Tap once for Escape, twice for Audio mute
+    [DT_ESC_MUTE] = ACTION_TAP_DANCE_DOUBLE(KC_ESC, KC_AUDIO_MUTE),
+    [DT_DEL_POWER] = ACTION_TAP_DANCE_DOUBLE(KC_DELETE, KC_SYSTEM_POWER),
+    [DT_HOM_PGUP] = ACTION_TAP_DANCE_DOUBLE(KC_HOME, KC_PGUP),
+    [DT_END_PGDW] = ACTION_TAP_DANCE_DOUBLE(KC_END, KC_PGDN),
 };
 
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
-/* QWERTY
- * ,-----------------------------------------.                    ,-----------------------------------------.
- * | ESC  |   1  |   2  |   3  |   4  |   5  |                    |   6  |   7  |   8  |   9  |   0  |  `   |
- * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * | Tab  |   Q  |   W  |   E  |   R  |   T  |                    |   Y  |   U  |   I  |   O  |   P  |  -   |
- * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |HYPER |   A  |   S  |   D  |   F  |   G  |-------.    ,-------|   H  |   J  |   K  |   L  |   ;  |  '   |
- * |------+------+------+------+------+------|   -   |    |    +  |------+------+------+------+------+------|
- * |LShift|   Z  |   X  |   C  |   V  |   B  |-------|    |-------|   N  |   M  |   ,  |   .  |   /  |RShift|
- * `-----------------------------------------/       /     \      \-----------------------------------------'
- *                   | LCtl | LGUI |LALT  | /Space  /       \Space \  |RAISE |   [  |   ]  |
- *                   |      |      |      |/ LOWER /         \      \ |   '  |      |      |
- *                   `----------------------------'           '------''--------------------'
- */
+[_QWERTY] = LAYOUT( \
+  TD(DT_ESC_MUTE),  KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, \
+  KC_TAB,           KC_Q,   KC_W,    KC_E,    KC_R,    KC_T,                     KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_BSPACE, \
+  CTRL_TAB,         KC_A,   KC_S, LT(3, KC_D),KC_F,    KC_G,                     KC_H,    KC_J, LT(4, KC_K),KC_L,    KC_SCLN, KC_QUOT, \
+  ALT_TAB,          KC_Z,   KC_X,    KC_C,    KC_V,    KC_B, KC_LBRC,  KC_RBRC,  KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, TD(DT_DEL_POWER), \
+       OSM(MOD_LCTL),MT(MOD_LSFT, KC_LGUI),TT(_LOWER), KC_SPC,           KC_ENT,  TT(_RAISE), 111100000, OSM(MOD_LALT) \
+),
 
- [_QWERTY] = LAYOUT(
-  KC_GESC,   KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                        KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC, \
-  KC_TAB,   KC_Q,   KC_W,    KC_E,    KC_R,    KC_T,                        KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_BSLS, \
-  ALL_T(KC_GRV), KC_A,   KC_S,    KC_D,    KC_F,    KC_G,                        KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_ENTER, \
-  KC_LSFT,  KC_Z,   KC_X,    KC_C,    KC_V,    KC_B, KC_MINS,  MEH_T(KC_EQL),  KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH,  KC_RSFT, \
-                             KC_LCTRL, KC_LGUI, KC_LALT,LT(_LOWER, KC_SPC),        KC_SPC, LT(2,KC_QUOT),   KC_LBRC, KC_RBRC \
-),
-/* LOWER
- * ,-----------------------------------------.                    ,-----------------------------------------.
- * |      |      |      |      |      |      |                    |      |      |      |      |      |      |
- * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |  F1  |  F2  |  F3  |  F4  |  F5  |  F6  |                    |  F7  |  F8  |  F9  | F10  | F11  | F12  |
- * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |   `  |   !  |   @  |   #  |   $  |   %  |-------.    ,-------|   ^  |   &  |   *  |   (  |   )  |   -  |
- * |------+------+------+------+------+------| cmd spc|   |       |------+------+------+------+------+------|
- * |      |      |      |ctrl c|      |      |-------|    |-------|      |   -  |   _  |   [  |   ]  |   |  |
- * `-----------------------------------------/       /     \      \-----------------------------------------'
- *                   | LAlt | LGUI |LOWER | /Space  /       \Enter \  |RAISE |  {   |  }   |
- *                   |      |      |      |/       /         \      \ |      |      |      |
- *                   `----------------------------'           '------''--------------------'
- */
-[_LOWER] = LAYOUT(
-   KC_GRV, KC_EXLM, KC_AT,   KC_HASH, KC_DLR,  KC_PERC,                   KC_CIRC, KC_AMPR, KC_ASTR, KC_LPRN, KC_RPRN, KC_TILD, \
-  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                     KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12, \
-  _______, _______, _______, _______, _______, _______,                   _______, _______, _______,_______, _______, _______,\
-  _______, _______, _______, C(KC_C), _______, _______, LGUI(KC_SPC), _______, _______, KC_MINS, KC_UNDS , KC_LBRC, KC_RBRC, KC_PIPE, \
-                             _______, _______, _______, _______, _______,  RAISE, KC_LCBR, KC_RCBR\
-),
-/* RAISE
- * ,-----------------------------------------.                    ,-----------------------------------------.
- * |      |      |      |      |      |      |                    |      |      |      |      |      |      |
- * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |   `  |   1  |   2  |   3  |   4  |   5  |                    |   6  |   7  |   8  |   9  |   0  |      |
- * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |  F1  |  F2  |  F3  |  F4  |  F5  |  F6  |-------.    ,-------|      | Left | Down |  Up  |Right |      |
- * |------+------+------+------+------+------|   [   |    |    ]  |------+------+------+------+------+------|
- * |  F7  |  F8  |  F9  | F10  | F11  | F12  |-------|    |-------|   +  |   -  |   =  |   [  |   ]  |   \  |
- * `-----------------------------------------/       /     \      \-----------------------------------------'
- *                   | LAlt | LGUI |LOWER | /Space  /       \Enter \  |RAISE |BackSP| RGUI |
- *                   |      |      |      |/       /         \      \ |      |      |      |
- *                   `----------------------------'           '------''--------------------'
- */
 
-[_RAISE] = LAYOUT(
-  KC_F1,  KC_F2,    KC_F3,   KC_F4,   KC_F5,   KC_F6,                       _______, KC_MRWD, KC_MPLY, KC_MFFD, KC_DEL, _______, \
-  KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,                      KC_6,    LCTL(LSFT(KC_TAB)),KC_UP,LCTL(KC_TAB),    KC_0,    _______, \
-  _______, _______, _______, _______, _______, _______,                     XXXXXXX, KC_LEFT, KC_DOWN, KC_RIGHT,   KC_RGHT, XXXXXXX, \
-  _______, _______, _______, _______, _______, _______, _______, TG(_ADJUST),KC_PLUS, KC_MUTE ,KC_VOLD  ,KC_VOLU, _______, _______,  \
-                             _______, _______, _______,  _______, _______,  _______, _______, _______ \
+[_LOWER] = LAYOUT( \
+  _______, _______, _______, _______, _______, _______,                   _______,  _______, _______, _______, _______,     _______,\
+  _______, KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                     KC_0,     KC_7,    KC_8,    KC_9,    KC_ASTERISK, KC_BSPACE, \
+  KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,                    KC_PLUS,  KC_4,    KC_5,    KC_6,    KC_EQUAL,    KC_DOT, \
+  KC_F1,   _______, _______, _______, _______, _______, _______, _______, KC_MINUS, KC_1,    KC_2,    KC_3,    KC_SLASH,    KC_COMMA, \
+                       OSM(MOD_LCTL), _______, _______, KC_SPC,  KC_ENT,  _______,  _______, OSM(MOD_LALT)\
 ),
-/* ADJUST
- * ,-----------------------------------------.                    ,-----------------------------------------.
- * |      |      |      |      |      |      |                    |      |  7   |   8  |   9  |RGB ON| HUE+ |
- * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |      |      |      |      |      |                    |      |  4   |   5  |   6  | MODE | HUE- |
- * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |      |      |      |      |      |-------.    ,-------|      |  1   |   2  |   3  | SAT+ | VAL+ |
- * |------+------+------+------+------+------|       |    |DEFAULT|------+------+------+------+------+------|
- * |      |      |      |      |      |      |-------|    |-------|      |  0   |   0  |   .  | SAT- | VAL- |
- * `-----------------------------------------/       /     \      \-----------------------------------------'
- *                   | LAlt | LGUI |LOWER | /Space  /       \Enter \  |RAISE |BackSP| RGUI |
- *                   |      |      |      |/       /         \      \ |      |      |      |
- *                   `----------------------------'           '------''--------------------'
- */
-  [_ADJUST] = LAYOUT(
-  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX,  KC_7  ,  KC_8  ,  KC_9  , RGB_TOG, RGB_HUI, \
-  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX,  KC_4  ,  KC_5  ,  KC_6  , RGB_MOD, RGB_HUD, \
-  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX,  KC_1  ,  KC_2  ,  KC_3  , RGB_SAI, RGB_VAI, \
-  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, TG(_ADJUST), XXXXXXX,  KC_0  ,  KC_0  , KC_DOT, RGB_SAD, RGB_VAD,\
-                             _______, _______, _______, _______, _______,  _______,KC_BSPC, _______ \
-  )
+
+
+[_RAISE] = LAYOUT( \
+  _______, _______, _______, _______, _______, _______,                     _______, _______, _______, _______, _______, _______, \
+  _______, _______, KC_MPRV, KC_PSCR, KC_MNXT, _______,                     _______, _______, _______, _______, _______, _______, \
+  _______, TD(DT_HOM_PGUP), KC_VOLD, KC_MPLY, KC_VOLU, TD(DT_END_PGDW),     _______, _______, _______, _______, _______, _______, \
+  _______, _______, _______, _______, _______, _______, _______,   _______, _______, _______, _______, _______, _______, _______, \
+                             _______, _______, _______, _______,   _______, _______, _______, _______ \
+),
+
+
+[_NAVI] = LAYOUT( \
+  _______, _______, _______, _______, _______, _______,                   _______, _______, _______, _______, _______, _______, \
+  _______, _______, _______, _______, _______, _______,                   _______, SFT_HOME,SFT_UP,  SFT_END, _______, _______, \
+  _______, _______, ALT_LEFT,_______,ALT_RIGHT,_______,                   _______, SFT_LEFT,SFT_DOWN,SFT_RIGHT,_______, _______, \
+  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,\
+                             _______, _______, _______, _______, _______, _______, _______, _______ \
+),
+  
+[_YELLOW] = LAYOUT( \
+  _______, _______, _______, _______, _______, _______,                   _______, _______, _______, _______, _______, _______, \
+  _______, _______, KC_BRIU, KC_UP,   KC_BRID, _______,                   _______, _______, _______, _______, _______, _______, \
+  _______, _______, KC_LEFT, KC_DOWN, KC_RGHT, _______,                   _______, _______, _______, _______, _______, _______, \
+  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,\
+                             _______, _______, _______, _______, _______, _______, _______, _______ \
+  ) 
 };
 
-int RGB_current_mode;
-
-int counter = 0;
-int lastIndex = 9;
-
-// Setting ADJUST layer RGB back to default
-void update_tri_layer_RGB(uint8_t layer1, uint8_t layer2, uint8_t layer3) {
-  if (IS_LAYER_ON(layer1) && IS_LAYER_ON(layer2)) {
-    layer_on(layer3);
-  } else {
-    layer_off(layer3);
-  }
-}
-
 void matrix_init_user(void) {
-    #ifdef RGBLIGHT_ENABLE
-      RGB_current_mode = rgblight_config.mode;
+    //SSD1306 OLED init, make sure to add #define SSD1306OLED in config.h
+    #ifdef SSD1306OLED
+        iota_gfx_init(!has_usb());   // turns on the display
     #endif
 }
 
-#ifdef OLED_DRIVER_ENABLE
-
-oled_rotation_t oled_init_user(oled_rotation_t rotation) {
-  if (!is_keyboard_master())
-    return OLED_ROTATION_180;  // flips the display 180 degrees if offhand
-  return rotation;
-}
+//SSD1306 OLED update loop, make sure to add #define SSD1306OLED in config.h
+#ifdef SSD1306OLED
 
 // When add source files to SRC in rules.mk, you can use functions.
 const char *read_layer_state(void);
@@ -145,86 +127,235 @@ void set_keylog(uint16_t keycode, keyrecord_t *record);
 const char *read_keylog(void);
 const char *read_keylogs(void);
 
-const char *read_mode_icon(bool swap);
-const char *read_host_led_state(void);
-void set_timelog(void);
-const char *read_timelog(void);
+// const char *read_mode_icon(bool swap);
+// const char *read_host_led_state(void);
+// void set_timelog(void);
+// const char *read_timelog(void);
 
-char encoder_debug[24];
+void matrix_scan_user(void) {
+   iota_gfx_task();
+}
 
-void oled_task_user(void) {
-  // Host Keyboard Layer Status
-  snprintf(encoder_debug, sizeof(encoder_debug), "%i   %i", counter, lastIndex );
-  if (is_keyboard_master()) {
+void matrix_render_user(struct CharacterMatrix *matrix) {
+  if (is_master) {
     // If you want to change the display of OLED, you need to change here
-    oled_write_ln(read_layer_state(), false);
-    // oled_write_ln(read_keylog(), false);
-    // oled_write_ln(read_keylogs(), false);
-    // oled_write_ln(read_mode_icon(keymap_config.swap_lalt_lgui), false);
-    oled_write_ln(read_host_led_state(), false);
-    oled_write_ln(encoder_debug, false);
-    // oled_write_ln(read_timelog(), false);
+    matrix_write_ln(matrix, read_layer_state());
+    matrix_write_ln(matrix, read_keylog());
+    matrix_write_ln(matrix, read_keylogs());
+    //matrix_write_ln(matrix, read_mode_icon(keymap_config.swap_lalt_lgui));
+    //matrix_write_ln(matrix, read_host_led_state());
+    //matrix_write_ln(matrix, read_timelog());
   } else {
-    oled_write(read_logo(), false);
-    // oled_write_ln(encoder_debug, false);
+    matrix_write(matrix, read_logo());
   }
 }
-#endif //OLED_DRIVER_ENABLE
+
+void matrix_update(struct CharacterMatrix *dest, const struct CharacterMatrix *source) {
+  if (memcmp(dest->display, source->display, sizeof(dest->display))) {
+    memcpy(dest->display, source->display, sizeof(dest->display));
+    dest->dirty = true;
+  }
+}
+
+void iota_gfx_task_user(void) {
+  struct CharacterMatrix matrix;
+  matrix_clear(&matrix);
+  matrix_render_user(&matrix);
+  matrix_update(&display, &matrix);
+}
+#endif//SSD1306OLED
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
   if (record->event.pressed) {
 #ifdef SSD1306OLED
-    // set_keylog(keycode, record);
+    set_keylog(keycode, record);
 #endif
     // set_timelog();
   }
-
-  switch (keycode) {
-    case QWERTY:
+  
+  switch (keycode) {               
+    case ALT_TAB:
       if (record->event.pressed) {
-        set_single_persistent_default_layer(_QWERTY);
-      }
-      return false;
-      break;
-    case LOWER:
-      if (record->event.pressed) {
-        layer_on(_LOWER);
-        update_tri_layer_RGB(_LOWER, _RAISE, _ADJUST);
-      } else {
-        layer_off(_LOWER);
-        update_tri_layer_RGB(_LOWER, _RAISE, _ADJUST);
-      }
-      return false;
-      break;
-    case RAISE:
-      if (record->event.pressed) {
-        layer_on(_RAISE);
-        update_tri_layer_RGB(_LOWER, _RAISE, _ADJUST);
-      } else {
-        layer_off(_RAISE);
-        update_tri_layer_RGB(_LOWER, _RAISE, _ADJUST);
-      }
-      return false;
-      break;
-    case ADJUST:
-        if (record->event.pressed) {
-          layer_on(_ADJUST);
-        } else {
-          layer_off(_ADJUST);
+        if (!is_alt_tab_active) {
+          is_alt_tab_active = true;
+          register_code(KC_LALT);
         }
-        return false;
-        break;
+        alt_tab_timer = timer_read();
+        register_code(KC_TAB);
+      } else {
+        unregister_code(KC_TAB);
+      }
+      break;
+      case CTRL_TAB:
+      if (record->event.pressed) {
+        if (!is_ctrl_tab_active) {
+          is_ctrl_tab_active = true;
+          register_code(KC_LCTRL);
+        }
+        ctrl_tab_timer = timer_read();
+        register_code(KC_TAB);
+      } else {
+        unregister_code(KC_TAB);
+      }
+      break;
+      case ALT_LEFT:
+      if (record->event.pressed) {
+        if (!is_alt_left_active) {
+          is_alt_left_active = true;
+          register_code(KC_LALT);
+        }
+        alt_left_timer = timer_read();
+        register_code(KC_LEFT);
+      } else {
+        unregister_code(KC_LEFT);
+      }
+      break;
+      case ALT_RIGHT:
+      if (record->event.pressed) {
+        if (!is_alt_right_active) {
+          is_alt_right_active = true;
+          register_code(KC_LALT);
+        }
+        alt_right_timer = timer_read();
+        register_code(KC_RGHT);
+      } else {
+        unregister_code(KC_RGHT);
+      }
+      break;
+      case SFT_DOWN:
+      if (record->event.pressed) {
+        if (!is_sft_down_active) {
+          is_sft_down_active = true;
+          register_code(KC_LSFT);
+        }
+        sft_down_timer = timer_read();
+        register_code(KC_DOWN);
+      } else {
+        unregister_code(KC_DOWN);
+      }
+      break;
+      case SFT_LEFT:
+      if (record->event.pressed) {
+        if (!is_sft_left_active) {
+          is_sft_left_active = true;
+          register_code(KC_LSFT);
+        }
+        sft_left_timer = timer_read();
+        register_code(KC_LEFT);
+      } else {
+        unregister_code(KC_LEFT);
+      }
+      break;
+      case SFT_RIGHT:
+      if (record->event.pressed) {
+        if (!is_sft_right_active) {
+          is_sft_right_active = true;
+          register_code(KC_LSFT);
+        }
+        sft_right_timer = timer_read();
+        register_code(KC_RGHT);
+      } else {
+        unregister_code(KC_RGHT);
+      }
+      break;
+      case SFT_UP:
+      if (record->event.pressed) {
+        if (!is_sft_up_active) {
+          is_sft_up_active = true;
+          register_code(KC_LSFT);
+        }
+        sft_up_timer = timer_read();
+        register_code(KC_UP);
+      } else {
+        unregister_code(KC_UP);
+      }
+      break;
+      case SFT_HOME:
+      if (record->event.pressed) {
+        if (!is_sft_home_active) {
+          is_sft_home_active = true;
+          register_code(KC_LSFT);
+        }
+        sft_home_timer = timer_read();
+        register_code(KC_HOME);
+      } else {
+        unregister_code(KC_HOME);
+      }
+      break;
+      case SFT_END:
+      if (record->event.pressed) {
+        if (!is_sft_end_active) {
+          is_sft_end_active = true;
+          register_code(KC_LSFT);
+        }
+        sft_end_timer = timer_read();
+        register_code(KC_END);
+      } else {
+        unregister_code(KC_END);
+      }
+      break;
   }
   return true;
 }
-
-void encoder_update_user(uint8_t index, bool clockwise) {
-    lastIndex = index;
-    if (clockwise) {
-        counter++;
-        tap_code(KC_PGDN);
-    } else {
-        counter--;
-        tap_code(KC_PGUP);
+void matrix_scan_user(void) {     # The very important timer.
+  if (is_ctrl_tab_active) {
+    if (timer_elapsed(ctrl_tab_timer) > 1000) {
+      unregister_code(KC_LCTRL);
+      is_ctrl_tab_active = false;
     }
+  }
+  if (is_alt_tab_active) {
+    if (timer_elapsed(alt_tab_timer) > 1000) {
+      unregister_code(KC_LALT);
+      is_alt_tab_active = false;
+    }
+  }
+  if (is_alt_left_active) {
+    if (timer_elapsed(alt_left_timer) > 1000) {
+      unregister_code(KC_LALT);
+      is_alt_left_active = false;
+    }
+  }
+  if (is_alt_right_active) {
+    if (timer_elapsed(alt_right_timer) > 1000) {
+      unregister_code(KC_LALT);
+      is_alt_right_active = false;
+    }
+  }
+  if (is_sft_down_active) {
+    if (timer_elapsed(sft_down_timer) > 10) {
+      unregister_code(KC_LSFT);
+      is_sft_down_active = false;
+    }
+  }
+  if (is_sft_left_active) {
+    if (timer_elapsed(sft_left_timer) > 10) {
+      unregister_code(KC_LSFT);
+      is_sft_left_active = false;
+    }
+  }
+  if (is_sft_right_active) {
+    if (timer_elapsed(sft_right_timer) > 10) {
+      unregister_code(KC_LSFT);
+      is_sft_right_active = false;
+    }
+  }
+  if (is_sft_up_active) {
+    if (timer_elapsed(sft_up_timer) > 10) {
+      unregister_code(KC_LSFT);
+      is_sft_up_active = false;
+    }
+  }
+  if (is_sft_home_active) {
+    if (timer_elapsed(sft_home_timer) > 10) {
+      unregister_code(KC_LSFT);
+      is_sft_home_active = false;
+    }
+  }
+  if (is_sft_end_active) {
+    if (timer_elapsed(sft_end_timer) > 10) {
+      unregister_code(KC_LSFT);
+      is_sft_end_active = false;
+    }
+  }                           
 }
